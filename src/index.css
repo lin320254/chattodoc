@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'Jameel Noori Nastaleeq';
+  src: local('Jameel Noori Nastaleeq'),
+       local('JameelNooriNastaleeq'),
+       url('https://cdn.jsdelivr.net/gh/m-usman/urdu-fonts/Jameel%20Noori%20Nastaleeq.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 'Noto Sans Myanmar', 'Pyidaungsu', system-ui, -apple-system, sans-serif;
+}
+
+.font-urdu {
+  font-family: 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 'Urdu Typesetting', Tahoma, serif;
+}

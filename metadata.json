@@ -1,0 +1,8 @@
+{
+  "name": "Remix Chat2Doc",
+  "description": "Cleanly extract and convert WhatsApp chat messages into formatted Word documents without timestamps or metadata.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
