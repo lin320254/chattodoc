@@ -117,12 +117,39 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             {t.outputModeLabel}
           </label>
           <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-medium">
-            3 Modes
+            4 Modes
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-          {/* Text Only (The user's direct request) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+          {/* Fatwa A4 Layout (The user's direct request) */}
+          <button
+            type="button"
+            id="mode-fatwa-a4-btn"
+            onClick={() => updateCleanOption('outputMode', 'fatwa_a4')}
+            className={`text-left p-3 rounded-xl border text-xs sm:text-sm transition-all relative ${
+              cleanOptions.outputMode === 'fatwa_a4'
+                ? 'border-emerald-600 bg-emerald-50/60 ring-2 ring-emerald-500/25 text-emerald-950 font-medium shadow-xs'
+                : 'border-slate-200 hover:border-slate-300 text-slate-700 hover:bg-slate-50/50'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-bold text-slate-900 flex items-center">
+                <Sparkles className="w-3 h-3 mr-1 text-emerald-600 inline" />
+                {t.modeFatwaA4}
+              </span>
+              {cleanOptions.outputMode === 'fatwa_a4' && (
+                <div className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                  <Check className="w-2.5 h-2.5" />
+                </div>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-500 leading-normal">
+              {t.modeFatwaA4Desc}
+            </p>
+          </button>
+
+          {/* Text Only */}
           <button
             type="button"
             id="mode-text-only-btn"
@@ -200,6 +227,141 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             </p>
           </button>
         </div>
+
+        {/* Fatwa Specific Configuration Card (When Fatwa A4 Mode is selected) */}
+        {cleanOptions.outputMode === 'fatwa_a4' && (
+          <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-emerald-50/70 to-teal-50/70 border border-emerald-200 space-y-3.5 animate-fadeIn">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-200/60 pb-2.5">
+              <span className="text-xs font-bold text-emerald-950 flex items-center">
+                <Sparkles className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
+                {t.fatwaSettingsSection}
+              </span>
+              <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-full border border-emerald-200">
+                {lang === 'my'
+                  ? 'A4 တစ်မျက်နှာလျှင် ၃ ကြောင်းတိတိ'
+                  : lang === 'ur'
+                  ? '۳ فتاویٰ فی A4 صفحہ'
+                  : '3 Items Strictly Per A4 Page'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs">
+              {/* Header template input */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="font-semibold text-slate-700">
+                    {t.fatwaHeaderLabel}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateDocxOption(
+                        'fatwaHeaderTemplate',
+                        'تاریخ: ــــــــــــــــــ فتوی نمبر: ــــــــــــــــ باب'
+                      )
+                    }
+                    className="text-[10px] text-emerald-700 hover:underline flex items-center"
+                  >
+                    <RotateCcw className="w-2.5 h-2.5 mr-1" />
+                    {t.resetHeaderBtn}
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={
+                    docxOptions.fatwaHeaderTemplate !== undefined
+                      ? docxOptions.fatwaHeaderTemplate
+                      : 'تاریخ: ــــــــــــــــــ فتوی نمبر: ــــــــــــــــ باب'
+                  }
+                  onChange={(e) =>
+                    updateDocxOption('fatwaHeaderTemplate', e.target.value)
+                  }
+                  className="w-full bg-white border border-emerald-300 rounded-lg px-3 py-1.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-right"
+                  dir="rtl"
+                  placeholder="تاریخ: ــــــــــــــــــ فتوی نمبر: ــــــــــــــــ باب"
+                />
+                <p className="text-[10px] text-slate-500">
+                  {lang === 'my'
+                    ? 'စာတစ်ကြောင်းစီရဲ့ အပေါ်တွင် ဤခေါင်းစဉ်စာတန်းကို အလိုအလျောက် ထည့်သွင်းပေးပါမည်။'
+                    : 'یہ سرخی ہر شرعی سوال یا فتویٰ کے آغاز میں ظاہر ہوگی۔'}
+                </p>
+              </div>
+
+              {/* Items per A4 Page + Sender Prefix */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    {t.itemsPerPageLabel}
+                  </label>
+                  <select
+                    value={docxOptions.itemsPerPage || 3}
+                    onChange={(e) =>
+                      updateDocxOption('itemsPerPage', Number(e.target.value))
+                    }
+                    className="w-full bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold"
+                  >
+                    <option value={3}>3 ({t.itemsPerPageThree})</option>
+                    <option value={1}>1 Item</option>
+                    <option value={2}>2 Items</option>
+                    <option value={4}>4 Items</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    {t.senderPrefixLabel}
+                  </label>
+                  <input
+                    type="text"
+                    value={
+                      docxOptions.senderLabelPrefix !== undefined
+                        ? docxOptions.senderLabelPrefix
+                        : 'سائل: '
+                    }
+                    onChange={(e) =>
+                      updateDocxOption('senderLabelPrefix', e.target.value)
+                    }
+                    className="w-full bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-right"
+                    dir="rtl"
+                    placeholder="سائل: "
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Checkboxes: Sender at bottom & Zero gap */}
+            <div className="flex flex-wrap items-center gap-4 pt-1 text-xs border-t border-emerald-200/50">
+              <label className="flex items-center space-x-2 text-slate-700 cursor-pointer font-medium select-none">
+                <input
+                  type="checkbox"
+                  checked={docxOptions.senderAtBottom !== false}
+                  onChange={(e) =>
+                    updateDocxOption('senderAtBottom', e.target.checked)
+                  }
+                  className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300"
+                />
+                <span>{t.senderAtBottomLabel}</span>
+              </label>
+
+              <label className="flex items-center space-x-2 text-slate-700 cursor-pointer font-medium select-none">
+                <input
+                  type="checkbox"
+                  checked={docxOptions.zeroGapSender !== false}
+                  onChange={(e) =>
+                    updateDocxOption('zeroGapSender', e.target.checked)
+                  }
+                  className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300"
+                />
+                <span className="text-emerald-950 font-semibold">
+                  {t.zeroGapLabel}
+                </span>
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-normal">
+                  Active
+                </span>
+              </label>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 2. Sender Filter & Fast Cleaning Toggles */}

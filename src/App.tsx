@@ -36,7 +36,7 @@ export default function App() {
   const [isExportingDocx, setIsExportingDocx] = useState<boolean>(false);
 
   const [cleanOptions, setCleanOptions] = useState<CleanOptions>({
-    outputMode: 'text_only', // Default to pure message text only
+    outputMode: 'fatwa_a4', // Default to Fatwa A4 format as requested
     selectedSender: 'all',
     removeSystemMessages: true,
     removeMediaNotices: true,
@@ -46,13 +46,19 @@ export default function App() {
   });
 
   const [docxOptions, setDocxOptions] = useState<DocxOptions>({
-    docTitle: 'واٹس ایپ پیغامات',
-    includeTitleInDoc: true,
+    docTitle: 'فتاویٰ و شرعی مسائل',
+    includeTitleInDoc: false,
     fontFamily: "'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', serif",
     fontSizePt: 14,
-    lineSpacing: 1.5,
-    addMessageDivider: false,
-    authorName: 'WhatsApp to Word Cleaner',
+    lineSpacing: 1.4,
+    addMessageDivider: true,
+    authorName: 'دار الافتاء / WhatsApp to Word',
+    fatwaHeaderTemplate: 'تاریخ: ــــــــــــــــــ فتوی نمبر: ــــــــــــــــ باب',
+    itemsPerPage: 3, // Strictly 3 items per page as requested: "A4တစ်မျက်နှာမှာ စာသုံးကြောင်းနဲ့အောက်ကနာမည်နဲ့ပဲလိုချင်တယ် တစ်မျက်နှာကိုသုံးကြောင်းပဲ"
+    senderLabelPrefix: 'سائل: ',
+    senderAtBottom: true,
+    zeroGapSender: true, // "အောက်ကနာမည်နဲ့ ဖသ်ဝါကြားမှာအကွာအဝေးမလိုချင်ဘူး"
+    showPageBorders: true,
   });
 
   const t = translations[lang];
@@ -67,10 +73,10 @@ export default function App() {
     return getCleanedMessages(parseResult.messages, cleanOptions);
   }, [parseResult.messages, cleanOptions]);
 
-  // Format clean string
+  // Format clean string with Fatwa header & page break markers
   const cleanString = useMemo(() => {
-    return formatOutputText(cleanedItems, cleanOptions.outputMode);
-  }, [cleanedItems, cleanOptions.outputMode]);
+    return formatOutputText(cleanedItems, cleanOptions.outputMode, docxOptions);
+  }, [cleanedItems, cleanOptions.outputMode, docxOptions]);
 
   // Copy to clipboard
   const handleCopyCleanText = useCallback(async () => {
@@ -137,28 +143,30 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6 space-y-5">
         {/* Banner with user-centric instruction & metrics */}
         <div className="bg-gradient-to-r from-emerald-800 to-teal-800 rounded-2xl p-4 sm:p-6 text-white shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="space-y-1 max-w-2xl">
-            <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-700/80 text-emerald-100 mb-1 border border-emerald-600">
+          <div className="space-y-1.5 max-w-2xl">
+            <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-700/80 text-emerald-100 mb-1 border border-emerald-600 flex-wrap gap-1">
               <Sparkles className="w-3.5 h-3.5 mr-1 text-amber-300" />
-              {lang === 'ur'
-                ? 'خودکار وقت اور تاریخ ہٹانے والا سسٹم'
-                : lang === 'my'
-                ? 'နာရီနှင့် ရက်စွဲများ အလိုအလျောက် သန့်စင်စနစ်'
-                : 'Automatic Timestamp Stripper'}
+              <span>
+                {lang === 'ur'
+                  ? 'فتویٰ لے آؤٹ: فی A4 صفحہ ۳ پیغامات + بالائی سرخی'
+                  : lang === 'my'
+                  ? 'ဖသ်ဝါ စာအုပ်ပုံစံ: A4 တစ်မျက်နှာ ၃ ကြောင်း + အပေါ်ခေါင်းစဉ်'
+                  : 'Fatwa A4 Mode: Strictly 3 Items Per Page + Header'}
+              </span>
             </div>
             <h2 className="text-lg sm:text-xl font-bold tracking-tight">
               {lang === 'ur'
-                ? 'واٹس ایپ سے خالص پیغامات مائیکروسافٹ ورڈ (.docx) میں حاصل کریں'
+                ? 'واٹس ایپ شرعی سوالات و فتاویٰ کو معیاری مائیکروسافٹ ورڈ (.docx) میں بدلیں'
                 : lang === 'my'
-                ? 'WhatsApp မှ စာသီးသန့်ကို Microsoft Word (.docx) အဖြစ် ဖန်တီးပါ'
-                : 'Extract Pure WhatsApp Messages directly into Microsoft Word (.docx)'}
+                ? 'WhatsApp ဖသ်ဝါများကို A4 တစ်မျက်နှာ ၃ ကြောင်းဖြင့် Word ဖိုင် (.docx) ထုတ်ယူပါ'
+                : 'Convert WhatsApp Queries into 3-Item A4 Fatwa Word Documents (.docx)'}
             </h2>
             <p className="text-xs sm:text-sm text-emerald-100 leading-relaxed">
-              {lang === 'ur'
-                ? 'واٹس ایپ سے کاپی کرتے وقت آنے والے اوقات، تاریخیں اور فالتو نوٹس خودکار طور پر ہٹا کر صرف اصل پیغامات کو خوبصورت جمیل نوری نستعلیق خطاطی کے ساتھ مائیکروسافٹ ورڈ میں محفوظ کریں۔'
-                : lang === 'my'
-                ? 'WhatsApp မှ ကူးယူလိုက်သောအခါ ပါလာသည့် နာရီ၊ ရက်စွဲ၊ ပို့သူအမည်များကို အလိုအလျောက်ဖယ်ရှားပေးပြီး သန့်စင်ပြီးသား စာများကိုသာ Microsoft Word ဖိုင်အဖြစ် ဒေါင်းလုဒ် ရယူနိုင်ပါသည်။'
-                : 'Strip away clocks, bracketed timestamps, dates, and unwanted media placeholders. Export only the pure clean messages into a genuine Word document.'}
+              {lang === 'my'
+                ? 'စာတစ်ကြောင်းစီရဲ့ အပေါ်တွင် "تاریخ: ــــــــــــــــــ فتوی نمبر: ــــــــــــــــ باب" ခေါင်းစဉ်ထည့်သွင်းပေးပြီး၊ A4 တစ်မျက်နှာလျှင် ၃ ကြောင်းတိတိနှင့် အောက်ကနာမည်ကြား အကွာအဝေးမရှိဘဲ စနစ်တကျ ပြင်ဆင်ထုတ်လုပ်ပေးပါသည်။'
+                : lang === 'ur'
+                ? 'ہر شرعی سوال کے اوپر "تاریخ: ــــــــــــــــــ فتوی نمبر: ــــــــــــــــ باب" کی خوبصورت سرخی، ہر A4 صفحے پر صرف ۳ سوالات، اور سوال کے بالکل نیچے سائل کا نام بغیر کسی فاصلے کے۔'
+                : 'Automatically places the requested Fatwa header above each item, restricts strictly 3 entries per A4 page with clean page breaks, and aligns the bottom sender name with zero gap.'}
             </p>
           </div>
 

@@ -1,4 +1,4 @@
-import { WhatsAppMessage, ParseResult, CleanOptions } from '../types';
+import { WhatsAppMessage, ParseResult, CleanOptions, DocxOptions } from '../types';
 
 /**
  * Common WhatsApp timestamp regex patterns:
@@ -361,8 +361,29 @@ export function getCleanedMessages(messages: WhatsAppMessage[], options: CleanOp
  */
 export function formatOutputText(
   items: { sender?: string; text: string }[],
-  mode: CleanOptions['outputMode']
+  mode: CleanOptions['outputMode'],
+  docxOptions?: DocxOptions
 ): string {
+  if (mode === 'fatwa_a4') {
+    const header = docxOptions?.fatwaHeaderTemplate || 'تاریخ: ــــــــــــــــــ فتوی نمبر: ــــــــــــــــ باب';
+    const prefix = docxOptions?.senderLabelPrefix !== undefined ? docxOptions.senderLabelPrefix : 'سائل: ';
+    const itemsPerPage = docxOptions?.itemsPerPage || 3;
+
+    return items
+      .map((item, idx) => {
+        const senderLine = item.sender ? `\n${prefix}${item.sender}` : '';
+        // Zero gap between text and bottom name as requested
+        const entry = `${header}\n${item.text}${senderLine}`;
+        const isPageBreak = (idx + 1) % itemsPerPage === 0 && idx < items.length - 1;
+        const pageNum = Math.floor(idx / itemsPerPage) + 1;
+        if (isPageBreak) {
+          return `${entry}\n\n==================== [A4 Page ${pageNum} End / Page ${pageNum + 1} Start] ====================`;
+        }
+        return entry;
+      })
+      .join('\n\n────────────────────────────────────────\n\n');
+  }
+
   if (mode === 'text_only') {
     // Exactly what user asked: only message content, no timestamps, no sender labels
     return items.map(i => i.text).join('\n\n');

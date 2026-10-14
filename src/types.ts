@@ -11,7 +11,7 @@ export interface WhatsAppMessage {
   lineNumber: number;
 }
 
-export type OutputMode = 'text_only' | 'sender_and_text' | 'formatted_chat';
+export type OutputMode = 'fatwa_a4' | 'text_only' | 'sender_and_text' | 'formatted_chat';
 
 export interface CleanOptions {
   outputMode: OutputMode;
@@ -31,6 +31,13 @@ export interface DocxOptions {
   lineSpacing: number; // 1.15, 1.5, 2.0
   addMessageDivider: boolean;
   authorName?: string;
+  // Fatwa-specific A4 layout options
+  fatwaHeaderTemplate?: string;
+  itemsPerPage?: number;
+  senderLabelPrefix?: string;
+  senderAtBottom?: boolean;
+  zeroGapSender?: boolean;
+  showPageBorders?: boolean;
 }
 
 export interface ParseResult {
