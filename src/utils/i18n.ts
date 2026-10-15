@@ -65,6 +65,15 @@ export const translations = {
     pageOfText: 'از',
     viewAllPages: 'تمام صفحات دیکھیں',
     viewSinglePage: 'ایک صفحہ',
+    // Dynamic page numbering & counts
+    dynamicPageNumberingSection: 'ڈائنامک صفحہ اور شمار بندی (Page & Count)',
+    enableWordPageNumbering: 'ورڈ کے نیچے ڈائنامک صفحہ نمبر شامل کریں (Word Dynamic Footer)',
+    pageNumberFormatLabel: 'صفحہ نمبر کا انداز',
+    pageNumberFormatFull: 'صفحہ ۱ از ۲ (Page X of Y)',
+    pageNumberFormatSimple: '- ۱ - (Simple Dash)',
+    resetItemCountPerPageLabel: 'ہر صفحہ پر شمار ۱ تا ۳ ری سیٹ کریں (Reset Count on each 3-item page)',
+    resetItemCountPerPageHint: '۳ پیغامات کی حد کے تحت ہر نئے صفحے پر فتاویٰ کا نمبر ۱، ۲، ۳ سے شروع ہوگا',
+    includeItemNumberInHeaderLabel: 'سرخی میں فتویٰ نمبر خودکار درج کریں (Auto-fill Fatwa #)',
   },
   my: {
     appTitle: 'WhatsApp to Word Cleaner',
@@ -130,6 +139,15 @@ export const translations = {
     pageOfText: 'မှ',
     viewAllPages: 'စာမျက်နှာအားလုံး',
     viewSinglePage: 'တစ်ခုချင်းကြည့်မည်',
+    // Dynamic page numbering & counts
+    dynamicPageNumberingSection: 'စာမျက်နှာနံပါတ်နှင့် စာကြောင်းရေ အလိုအလျောက် ရေတွက်စနစ်',
+    enableWordPageNumbering: 'Word Footer တွင် dynamic စာမျက်နှာနံပါတ် ထည့်သွင်းမည်',
+    pageNumberFormatLabel: 'စာမျက်နှာနံပါတ် ပုံစံ',
+    pageNumberFormatFull: 'စာမျက်နှာ ၁ / ၂ (Page X of Y)',
+    pageNumberFormatSimple: '- ၁ - (Simple Dash)',
+    resetItemCountPerPageLabel: 'A4 တစ်မျက်နှာလျှင် စာကြောင်းရေ ၁ မှ ၃ ထိ ပြန်စမည် (၃ ကြောင်းကန့်သတ်ချက်)',
+    resetItemCountPerPageHint: 'တစ်မျက်နှာ ၃ ကြောင်းကန့်သတ်ချက်အရ စာမျက်နှာတိုင်းတွင် စာကြောင်းရေ ၁၊ ၂၊ ၃ ဟု အလိုအလျောက် ပြန်လည်စတင်ပါမည်',
+    includeItemNumberInHeaderLabel: 'ခေါင်းစဉ်တွင် ဖသ်ဝါနံပါတ် အလိုအလျောက် ထည့်မည်',
   },
   en: {
     appTitle: 'WhatsApp to Word Cleaner',
@@ -195,5 +213,14 @@ export const translations = {
     pageOfText: 'of',
     viewAllPages: 'All Pages',
     viewSinglePage: 'Single Page',
+    // Dynamic page numbering & counts
+    dynamicPageNumberingSection: 'Dynamic Page & Item Numbering',
+    enableWordPageNumbering: 'Enable dynamic page numbering in Word footer',
+    pageNumberFormatLabel: 'Page Number Format',
+    pageNumberFormatFull: 'Page X of Y',
+    pageNumberFormatSimple: '- X - (Simple Dash)',
+    resetItemCountPerPageLabel: 'Reset item count to 1..3 on each A4 page',
+    resetItemCountPerPageHint: 'Under the 3-items constraint, item numbers reset to 1, 2, 3 on every new page',
+    includeItemNumberInHeaderLabel: 'Auto-fill fatwa number in header',
   },
 };

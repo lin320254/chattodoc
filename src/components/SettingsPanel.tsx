@@ -360,6 +360,98 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 </span>
               </label>
             </div>
+
+            {/* Dynamic Page Numbering & 3-Items Count Reset Controls */}
+            <div className="pt-2.5 border-t border-emerald-200/60 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-emerald-950">
+                  {t.dynamicPageNumberingSection}
+                </span>
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-mono font-medium">
+                  Dynamic Fields
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <label className="flex items-start space-x-2 text-slate-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={docxOptions.resetItemCountPerPage !== false}
+                    onChange={(e) =>
+                      updateDocxOption('resetItemCountPerPage', e.target.checked)
+                    }
+                    className="w-4 h-4 mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300"
+                  />
+                  <div>
+                    <span className="font-semibold text-slate-800 block">
+                      {t.resetItemCountPerPageLabel}
+                    </span>
+                    <span className="text-[10px] text-slate-500 block leading-tight">
+                      {t.resetItemCountPerPageHint}
+                    </span>
+                  </div>
+                </label>
+
+                <label className="flex items-start space-x-2 text-slate-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={docxOptions.includeItemNumberInHeader !== false}
+                    onChange={(e) =>
+                      updateDocxOption('includeItemNumberInHeader', e.target.checked)
+                    }
+                    className="w-4 h-4 mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300"
+                  />
+                  <div>
+                    <span className="font-semibold text-slate-800 block">
+                      {t.includeItemNumberInHeaderLabel}
+                    </span>
+                    <span className="text-[10px] text-slate-500 block leading-tight">
+                      {lang === 'ur'
+                        ? 'مثال: فتوی نمبر: ۱ (۱/۳)، فتوی نمبر: ۲ (۲/۳)'
+                        : lang === 'my'
+                        ? 'ဥပမာ: ဖသ်ဝါနံပါတ်: ၁ (၁/၃)၊ ၂ (၂/၃)'
+                        : 'e.g. Fatwa #1 (1/3), #2 (2/3)'}
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              {/* Word Footer Page Numbering Settings */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 bg-white/70 p-2.5 rounded-lg border border-emerald-200/70">
+                <label className="flex items-center space-x-2 text-slate-700 cursor-pointer select-none font-medium">
+                  <input
+                    type="checkbox"
+                    checked={docxOptions.enablePageNumbering !== false}
+                    onChange={(e) =>
+                      updateDocxOption('enablePageNumbering', e.target.checked)
+                    }
+                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300"
+                  />
+                  <span>{t.enableWordPageNumbering}</span>
+                </label>
+
+                {docxOptions.enablePageNumbering !== false && (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      {t.pageNumberFormatLabel}:
+                    </span>
+                    <select
+                      value={docxOptions.pageNumberFormat || 'page_of_total'}
+                      onChange={(e) =>
+                        updateDocxOption(
+                          'pageNumberFormat',
+                          e.target.value as 'page_of_total' | 'simple_dash'
+                        )
+                      }
+                      className="bg-white border border-emerald-300 rounded-md px-2 py-0.5 text-[11px] text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    >
+                      <option value="page_of_total">{t.pageNumberFormatFull}</option>
+                      <option value="simple_dash">{t.pageNumberFormatSimple}</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>

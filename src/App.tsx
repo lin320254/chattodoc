@@ -50,15 +50,20 @@ export default function App() {
     includeTitleInDoc: false,
     fontFamily: "'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', serif",
     fontSizePt: 14,
-    lineSpacing: 1.4,
-    addMessageDivider: true,
-    authorName: 'دار الافتاء / WhatsApp to Word',
+    lineSpacing: 1.5,
+    addMessageDivider: false,
+    authorName: 'WhatsApp to Word Cleaner',
     fatwaHeaderTemplate: 'تاریخ: ــــــــــــــــــ فتوی نمبر: ــــــــــــــــ باب',
     itemsPerPage: 3, // Strictly 3 items per page as requested: "A4တစ်မျက်နှာမှာ စာသုံးကြောင်းနဲ့အောက်ကနာမည်နဲ့ပဲလိုချင်တယ် တစ်မျက်နှာကိုသုံးကြောင်းပဲ"
-    senderLabelPrefix: 'سائل: ',
+    senderLabelPrefix: '',
     senderAtBottom: true,
-    zeroGapSender: true, // "အောက်ကနာမည်နဲ့ ဖသ်ဝါကြားမှာအကွာအဝေးမလိုချင်ဘူး"
-    showPageBorders: true,
+    zeroGapSender: true,
+    showPageBorders: false,
+    enablePageNumbering: true,
+    pageNumberFormat: 'page_of_total',
+    resetItemCountPerPage: true, // 1..3 per page based on 3-items constraint
+    includeItemNumberInHeader: true,
+    resetPageNumberPerSection: false,
   });
 
   const t = translations[lang];

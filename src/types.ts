@@ -38,6 +38,12 @@ export interface DocxOptions {
   senderAtBottom?: boolean;
   zeroGapSender?: boolean;
   showPageBorders?: boolean;
+  // Dynamic page numbering & counts based on 3-items-per-page constraint
+  enablePageNumbering?: boolean;
+  pageNumberFormat?: 'page_of_total' | 'simple_dash';
+  resetItemCountPerPage?: boolean; // default: true (counts reset to 1..3 on each page based on 3-items constraint)
+  includeItemNumberInHeader?: boolean; // default: true (auto inserts dynamic 1..3 into header)
+  resetPageNumberPerSection?: boolean; // default: false (continuous page numbers in docx)
 }
 
 export interface ParseResult {

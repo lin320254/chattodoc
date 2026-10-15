@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { DocxOptions, OutputMode } from '../types';
 import { Lang, translations } from '../utils/i18n';
+import { toUrduDigits, toMyanmarDigits } from '../utils/docxExporter';
 
 interface CleanItem {
   sender?: string;
@@ -210,66 +211,79 @@ export const WordPreview: React.FC<WordPreviewProps> = ({
                       )}
 
                     {/* Page Fatwa Items: Strictly 3 items per A4 sheet */}
-                    <div className="space-y-4">
+                    <div className="space-y-8 sm:space-y-12 py-2">
                       {pageItems.map((item, itemIdx) => {
-                        const isLastItemOnPage = itemIdx === pageItems.length - 1;
+                        // Dynamic Count: item count resets to 1..3 on each page based on the 3-items-per-page constraint
+                        const itemNumberOnPage = itemIdx + 1; // 1, 2, or 3
+                        const continuousNumber = (actualPageNum - 1) * itemsPerPage + itemIdx + 1;
+                        const activeNumber = docxOptions.resetItemCountPerPage !== false ? itemNumberOnPage : continuousNumber;
+                        const numDisplay = isRtl ? toUrduDigits(activeNumber) : String(activeNumber);
+                        const totalInChunkDisplay = isRtl ? toUrduDigits(pageItems.length) : String(pageItems.length);
+
+                        let displayHeader = fatwaHeader;
+                        if (displayHeader.includes('{num}')) {
+                          displayHeader = displayHeader
+                            .replace('{num}', numDisplay)
+                            .replace('{total}', totalInChunkDisplay);
+                        }
+
                         return (
-                          <div
-                            key={itemIdx}
-                            className={`transition-all ${
-                              !isLastItemOnPage && docxOptions.addMessageDivider
-                                ? 'border-b border-dashed border-slate-300 pb-3'
-                                : ''
-                            }`}
-                          >
-                            {/* 1. Top Header: "تاریخ: ــــــــــــــــــ فتوی نمبر: ــــــــــــــــ باب" */}
-                            <div className="bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 mb-2 font-bold text-slate-800 text-sm tracking-wide select-all flex items-center justify-between">
-                              <span
-                                className="font-urdu leading-relaxed"
-                                style={{
-                                  fontSize: `${docxOptions.fontSizePt + 1}pt`,
-                                }}
-                              >
-                                {fatwaHeader}
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-mono font-normal">
-                                #{itemIdx + 1}
-                              </span>
+                          <div key={itemIdx} className="text-right select-text">
+                            {/* 1. Top Header: "تاریخ: ــــــــــــــــــ فتوی نمبر: ــــــــــــــــ باب" (Above every item) */}
+                            <div
+                              className="font-urdu font-bold text-slate-900 text-right select-text leading-relaxed tracking-wide pb-1"
+                              style={{
+                                fontSize: `${docxOptions.fontSizePt + 1}pt`,
+                              }}
+                            >
+                              {displayHeader}
                             </div>
 
-                            {/* 2. Message / Fatwa Text */}
-                            <p className="whitespace-pre-wrap text-slate-900 leading-relaxed font-urdu select-text">
-                              {item.text}
-                            </p>
-
-                            {/* 3. Bottom Sender Name: NO GAP (zero spacing) directly attached beneath the text! */}
-                            {item.sender && docxOptions.senderAtBottom !== false && (
-                              <div
-                                className="mt-0 pt-0.5 flex items-center justify-between text-xs text-sky-800 font-bold select-text"
-                                style={{
-                                  // Zero gap as user explicitly instructed: "အောက်ကနာမည်နဲ့ ဖသ်ဝါကြားမှာအကွာအဝေးမလိုချင်ဘူး"
-                                  marginTop: '0px',
-                                  paddingTop: '2px',
-                                }}
-                              >
-                                <span className="font-urdu">
-                                  {senderPrefix}
-                                  {item.sender}
-                                </span>
-                                <span className="text-[10px] text-slate-400 font-normal italic">
-                                  (منقول از واٹس ایپ)
-                                </span>
+                            {/* 2 & 3. Question & Attached Sender Name: "နာမည်ကကွာမနေရဘူး ကပ်နေရမယ်" */}
+                            <div
+                              className="font-urdu text-right select-text text-slate-900"
+                              style={{
+                                lineHeight: isRtl ? '1.9' : docxOptions.lineSpacing,
+                              }}
+                            >
+                              <div className="whitespace-pre-wrap m-0 p-0 text-slate-900 leading-relaxed">
+                                {item.text.trim()}
                               </div>
+
+                              {/* Sender directly attached on the next line with ZERO gap */}
+                              {item.sender && docxOptions.senderAtBottom !== false && (
+                                <div
+                                  className="m-0 p-0 font-bold text-slate-900 leading-relaxed"
+                                  style={{
+                                    marginTop: '0px',
+                                    paddingTop: '0px',
+                                  }}
+                                >
+                                  {docxOptions.senderLabelPrefix || ''}{item.sender}
+                                </div>
+                              )}
+                            </div>
+
+                            {docxOptions.addMessageDivider && itemIdx < pageItems.length - 1 && (
+                              <div className="border-b border-dotted border-slate-200 mt-4" />
                             )}
                           </div>
                         );
                       })}
                     </div>
 
-                    {/* Page Footer / Page Number */}
-                    <div className="absolute bottom-3 left-0 right-0 text-center text-[10px] text-slate-400 font-mono pointer-events-none">
-                      - {actualPageNum} -
-                    </div>
+                    {/* Word Document Page Footer (Clean dynamic simulation) */}
+                    {docxOptions.enablePageNumbering !== false && (
+                      <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-slate-400 font-mono pointer-events-none">
+                        {docxOptions.pageNumberFormat === 'simple_dash'
+                          ? `- ${isRtl ? toUrduDigits(actualPageNum) : actualPageNum} -`
+                          : isRtl
+                          ? `صفحہ ${toUrduDigits(actualPageNum)} از ${toUrduDigits(totalPages)}`
+                          : lang === 'my'
+                          ? `စာမျက်နှာ ${actualPageNum} / ${totalPages}`
+                          : `Page ${actualPageNum} of ${totalPages}`}
+                      </div>
+                    )}
                   </div>
                 </div>
               );

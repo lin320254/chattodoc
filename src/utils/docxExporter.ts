@@ -7,6 +7,8 @@ import {
   AlignmentType,
   BorderStyle,
   PageBreak,
+  Footer,
+  PageNumber,
   convertInchesToTwip,
 } from 'docx';
 import { DocxOptions, OutputMode } from '../types';
@@ -16,13 +18,96 @@ interface CleanMessageItem {
   text: string;
 }
 
+export function toUrduDigits(num: number | string): string {
+  const urduDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+  return String(num).replace(/[0-9]/g, (d) => urduDigits[Number(d)]);
+}
+
+export function toMyanmarDigits(num: number | string): string {
+  const myanmarDigits = ['၀', '၁', '၂', '၃', '၄', '၅', '၆', '၇', '၈', '၉'];
+  return String(num).replace(/[0-9]/g, (d) => myanmarDigits[Number(d)]);
+}
+
+export function formatNumberForFont(num: number | string, fontFamily: string): string {
+  if (fontFamily.includes('Nastaleeq') || fontFamily.includes('Urdu')) {
+    return toUrduDigits(num);
+  }
+  if (fontFamily.includes('Pyidaungsu') || fontFamily.includes('Myanmar')) {
+    return toMyanmarDigits(num);
+  }
+  return String(num);
+}
+
+function buildDocumentFooter(
+  fontFamily: string,
+  isUrduFont: boolean,
+  options: DocxOptions
+): Footer {
+  const format = options.pageNumberFormat || 'page_of_total';
+  const runs: TextRun[] = [];
+
+  if (format === 'simple_dash') {
+    runs.push(
+      new TextRun({ text: '- ', font: fontFamily, size: 18, color: '64748B' }),
+      new TextRun({
+        children: [PageNumber.CURRENT],
+        font: fontFamily,
+        size: 18,
+        bold: true,
+        color: '334155',
+      }),
+      new TextRun({ text: ' -', font: fontFamily, size: 18, color: '64748B' })
+    );
+  } else {
+    // page_of_total
+    const pageLabel = isUrduFont
+      ? 'صفحہ '
+      : fontFamily.includes('Pyidaungsu')
+      ? 'စာမျက်နှာ '
+      : 'Page ';
+    const ofLabel = isUrduFont
+      ? ' از '
+      : fontFamily.includes('Pyidaungsu')
+      ? ' / '
+      : ' of ';
+
+    runs.push(
+      new TextRun({ text: pageLabel, font: fontFamily, size: 18, color: '64748B' }),
+      new TextRun({
+        children: [PageNumber.CURRENT],
+        font: fontFamily,
+        size: 18,
+        bold: true,
+        color: '334155',
+      }),
+      new TextRun({ text: ofLabel, font: fontFamily, size: 18, color: '64748B' }),
+      new TextRun({
+        children: [PageNumber.TOTAL_PAGES],
+        font: fontFamily,
+        size: 18,
+        bold: true,
+        color: '334155',
+      })
+    );
+  }
+
+  return new Footer({
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 140, after: 60 },
+        children: runs,
+      }),
+    ],
+  });
+}
+
 export async function generateWordDocument(
   items: CleanMessageItem[],
   outputMode: OutputMode,
   options: DocxOptions
 ): Promise<Blob> {
-  const paragraphs: Paragraph[] = [];
-  // Use font name without CSS quotes for docx
+  // Normalize font name
   let fontFamily = options.fontFamily || 'Jameel Noori Nastaleeq';
   if (fontFamily.includes('Jameel Noori Nastaleeq')) {
     fontFamily = 'Jameel Noori Nastaleeq';
@@ -31,42 +116,246 @@ export async function generateWordDocument(
   }
 
   const isUrduFont = fontFamily === 'Jameel Noori Nastaleeq';
-  // Urdu Nastaleeq typography looks best at slightly larger pt (14-16pt) or user chosen
-  const fontSizeHalfPt = (options.fontSizePt || (isUrduFont ? 14 : 12)) * 2; // docx uses half-points
-  const lineSpacingTwip = Math.round((options.lineSpacing || (isUrduFont ? 1.4 : 1.15)) * 240); // 240 is single line in twip
+  const fontSizeHalfPt = (options.fontSizePt || (isUrduFont ? 14 : 12)) * 2;
+  const lineSpacingTwip = Math.round((options.lineSpacing || (isUrduFont ? 1.4 : 1.15)) * 240);
+  const itemsPerPage = options.itemsPerPage || 3;
+  const fatwaHeaderTemplate = options.fatwaHeaderTemplate || 'تاریخ: ــــــــــــــــــ فتوی نمبر: ــــــــــــــــ باب';
+  const senderPrefix = options.senderLabelPrefix !== undefined ? options.senderLabelPrefix : 'سائل: ';
 
-  // 1. Optional Document Title
+  // Create standard A4 dimensions (210 x 297 mm = 11906 x 16838 twips)
+  const a4PageProperties = {
+    size: {
+      width: 11906,
+      height: 16838,
+    },
+    margin: {
+      top: convertInchesToTwip(0.75),
+      right: convertInchesToTwip(0.75),
+      bottom: convertInchesToTwip(0.75),
+      left: convertInchesToTwip(0.75),
+    },
+    pageNumbers: options.resetPageNumberPerSection ? { start: 1 } : undefined,
+  };
+
+  const footer = options.enablePageNumbering !== false ? buildDocumentFooter(fontFamily, isUrduFont, options) : undefined;
+
+  // FATWA A4 MODE:
+  // Strictly partitions items into pages of `itemsPerPage` (default 3)
+  // Ensures item counts reset correctly to 1..3 on each page
+  // Provides dynamic page numbers in the footer
+  if (outputMode === 'fatwa_a4') {
+    const pageChunks: CleanMessageItem[][] = [];
+    for (let i = 0; i < items.length; i += itemsPerPage) {
+      pageChunks.push(items.slice(i, i + itemsPerPage));
+    }
+
+    // Handle empty case
+    if (pageChunks.length === 0) {
+      pageChunks.push([]);
+    }
+
+    const sections = pageChunks.map((chunk, pageIndex) => {
+      const pageParagraphs: Paragraph[] = [];
+
+      // 1. Optional Document Title on Page 1 only
+      if (pageIndex === 0 && options.includeTitleInDoc && options.docTitle && options.docTitle.trim()) {
+        pageParagraphs.push(
+          new Paragraph({
+            text: options.docTitle.trim(),
+            heading: HeadingLevel.HEADING_1,
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 200, before: 100 },
+            run: {
+              font: fontFamily,
+              bold: true,
+              size: fontSizeHalfPt + 8,
+              color: '1E293B',
+            },
+          })
+        );
+
+        pageParagraphs.push(
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 280 },
+            children: [
+              new TextRun({
+                text: `Generated from WhatsApp • ${new Date().toLocaleDateString()}`,
+                font: fontFamily,
+                size: 18,
+                color: '64748B',
+                italics: true,
+              }),
+            ],
+          })
+        );
+      }
+
+      if (chunk.length === 0) {
+        pageParagraphs.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: 'No message content available.',
+                font: fontFamily,
+                size: fontSizeHalfPt,
+                italics: true,
+                color: '94A3B8',
+              }),
+            ],
+          })
+        );
+      }
+
+      // Add each item on this 3-item page
+      chunk.forEach((item, itemIdx) => {
+        const rawLines = item.text.split('\n');
+
+        // Dynamic Count:
+        // Item count resets to 1, 2, 3 on every page based on 3-items-per-page constraint!
+        const itemNumberOnPage = itemIdx + 1; // 1, 2, or 3
+        const continuousNumber = pageIndex * itemsPerPage + itemIdx + 1;
+        const activeNumber = options.resetItemCountPerPage !== false ? itemNumberOnPage : continuousNumber;
+        const numDisplay = formatNumberForFont(activeNumber, fontFamily);
+        const totalInChunkDisplay = formatNumberForFont(chunk.length, fontFamily);
+
+        // Header text: If user template has {num}, replace it; otherwise preserve the exact requested text
+        let finalHeader = fatwaHeaderTemplate;
+        if (finalHeader.includes('{num}')) {
+          finalHeader = finalHeader
+            .replace('{num}', numDisplay)
+            .replace('{total}', totalInChunkDisplay);
+        }
+
+        // 1. Top Header paragraph (Clean, bold, right-aligned, matching Word screenshot)
+        pageParagraphs.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: finalHeader,
+                font: fontFamily,
+                bold: true,
+                size: fontSizeHalfPt + 2,
+                color: '1E293B',
+              }),
+            ],
+            alignment: AlignmentType.RIGHT,
+            bidirectional: isUrduFont,
+            spacing: {
+              before: itemIdx === 0 && (!options.includeTitleInDoc || pageIndex > 0) ? 80 : 420,
+              after: 100,
+            },
+          })
+        );
+
+        // 2 & 3. Fatwa question and attached sender name:
+        // CRITICAL REQUIREMENT: "နာမည်ကကွာမနေရဘူး ကပ်နေရမယ်" (No gap between question and sender!)
+        // In Word, putting both into the SAME Paragraph using a soft break (<w:br/> / break: 1)
+        // guarantees 100% that Microsoft Word will not add paragraph spacing or page breaks between them.
+        const questionRuns: TextRun[] = [];
+        const cleanLines = item.text.trim().split('\n');
+        cleanLines.forEach((line, lIdx) => {
+          questionRuns.push(
+            new TextRun({
+              text: line,
+              font: fontFamily,
+              size: fontSizeHalfPt,
+              color: '1E293B',
+              break: lIdx > 0 ? 1 : 0,
+            })
+          );
+        });
+
+        // Tightly attached sender name directly on the next line (ZERO GAP)
+        if (item.sender && options.senderAtBottom !== false) {
+          const prefix = options.senderLabelPrefix || '';
+          questionRuns.push(
+            new TextRun({
+              text: `${prefix}${item.sender}`,
+              font: fontFamily,
+              size: fontSizeHalfPt,
+              bold: true,
+              color: '1E293B',
+              break: 1, // Soft line break in exact same paragraph - zero gap!
+            })
+          );
+        }
+
+        pageParagraphs.push(
+          new Paragraph({
+            children: questionRuns,
+            alignment: AlignmentType.RIGHT,
+            bidirectional: isUrduFont,
+            spacing: {
+              before: 60,
+              after: 0,
+              line: lineSpacingTwip,
+            },
+          })
+        );
+
+        if (options.addMessageDivider && itemIdx < chunk.length - 1) {
+          pageParagraphs.push(
+            new Paragraph({
+              spacing: { before: 80, after: 80 },
+              border: {
+                bottom: {
+                  style: BorderStyle.DOTTED,
+                  size: 1,
+                  color: 'CBD5E1',
+                },
+              },
+            })
+          );
+        }
+      });
+
+      return {
+        properties: {
+          page: a4PageProperties,
+        },
+        footers: footer ? { default: footer } : undefined,
+        children: pageParagraphs,
+      };
+    });
+
+    const doc = new Document({
+      title: options.docTitle || 'فتاویٰ و پیغامات',
+      creator: options.authorName || 'دار الافتاء / WhatsApp to Word',
+      sections,
+    });
+
+    return await Packer.toBlob(doc);
+  }
+
+  // OTHER OUTPUT MODES (text_only, sender_and_text, formatted_chat)
+  const paragraphs: Paragraph[] = [];
+
   if (options.includeTitleInDoc && options.docTitle && options.docTitle.trim()) {
     paragraphs.push(
       new Paragraph({
         text: options.docTitle.trim(),
         heading: HeadingLevel.HEADING_1,
         alignment: AlignmentType.CENTER,
-        spacing: {
-          after: 240,
-          before: 120,
-        },
+        spacing: { after: 240, before: 120 },
         run: {
           font: fontFamily,
           bold: true,
-          size: fontSizeHalfPt + 8, // Prominent title
+          size: fontSizeHalfPt + 8,
           color: '1E293B',
         },
       })
     );
 
-    // Subtitle / Generated timestamp
     paragraphs.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: {
-          after: 320,
-        },
+        spacing: { after: 320 },
         children: [
           new TextRun({
             text: `Generated from WhatsApp • ${new Date().toLocaleDateString()}`,
             font: fontFamily,
-            size: 18, // 9pt
+            size: 18,
             color: '64748B',
             italics: true,
           }),
@@ -75,133 +364,10 @@ export async function generateWordDocument(
     );
   }
 
-  // 2. Add Messages based on Output Mode
-  const itemsPerPage = options.itemsPerPage || 3;
-  const fatwaHeader = options.fatwaHeaderTemplate || 'تاریخ: ــــــــــــــــــ فتوی نمبر: ــــــــــــــــ باب';
-  const senderPrefix = options.senderLabelPrefix !== undefined ? options.senderLabelPrefix : 'سائل: ';
-
-  items.forEach((item, index) => {
+  items.forEach((item) => {
     const rawLines = item.text.split('\n');
 
-    if (outputMode === 'fatwa_a4') {
-      // User's specific Fatwa A4 mode:
-      // - 3 items strictly per A4 page (with PageBreak after every 3 items)
-      // - Header on top of each item: "تاریخ: ــــــــــــــــــ فتوی نمبر: ــــــــــــــــ باب"
-      // - Fatwa text
-      // - Sender name directly at the bottom with NO GAP (zero spacing) between text and sender!
-
-      // Page break before item if starting a new A4 page (index > 0 and index % itemsPerPage === 0)
-      if (index > 0 && index % itemsPerPage === 0) {
-        paragraphs.push(
-          new Paragraph({
-            children: [new PageBreak()],
-          })
-        );
-      }
-
-      // 1. Top Header Paragraph
-      paragraphs.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: fatwaHeader,
-              font: fontFamily,
-              bold: true,
-              size: fontSizeHalfPt + 2,
-              color: '0F172A',
-            }),
-          ],
-          alignment: isUrduFont ? AlignmentType.RIGHT : AlignmentType.LEFT,
-          bidirectional: isUrduFont,
-          spacing: {
-            before: index % itemsPerPage === 0 ? 60 : 160,
-            after: 60,
-          },
-          border: {
-            bottom: {
-              style: BorderStyle.SINGLE,
-              size: 2,
-              color: 'CBD5E1',
-            },
-          },
-        })
-      );
-
-      // 2. Fatwa Message Text (Middle)
-      const textRuns: TextRun[] = [];
-      rawLines.forEach((line, lIdx) => {
-        textRuns.push(
-          new TextRun({
-            text: line,
-            font: fontFamily,
-            size: fontSizeHalfPt,
-            color: '1E293B',
-            break: lIdx > 0 ? 1 : 0,
-          })
-        );
-      });
-
-      paragraphs.push(
-        new Paragraph({
-          children: textRuns,
-          alignment: isUrduFont ? AlignmentType.RIGHT : AlignmentType.LEFT,
-          bidirectional: isUrduFont,
-          spacing: {
-            before: 60,
-            after: 0, // CRITICAL: Zero spacing after text so bottom name connects immediately!
-            line: lineSpacingTwip,
-          },
-        })
-      );
-
-      // 3. Bottom Sender Name (NO GAP from fatwa text above it)
-      if (item.sender && options.senderAtBottom !== false) {
-        paragraphs.push(
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: `${senderPrefix}${item.sender}`,
-                font: fontFamily,
-                bold: true,
-                size: Math.max(18, fontSizeHalfPt - 2),
-                color: '0369A1', // Clean subtle slate blue for sender identity
-              }),
-            ],
-            // In Urdu Nastaleeq documents, signature / asker is positioned at left or right as preferred
-            alignment: isUrduFont ? AlignmentType.LEFT : AlignmentType.RIGHT,
-            bidirectional: isUrduFont,
-            spacing: {
-              before: 0, // CRITICAL: NO GAP between fatwa text and bottom name!
-              after: options.addMessageDivider ? 180 : 140,
-            },
-            border: options.addMessageDivider && (index + 1) % itemsPerPage !== 0
-              ? {
-                  bottom: {
-                    style: BorderStyle.DOTTED,
-                    size: 1,
-                    color: '94A3B8',
-                  },
-                }
-              : undefined,
-          })
-        );
-      } else if (options.addMessageDivider && (index + 1) % itemsPerPage !== 0) {
-        // If no sender but divider is requested
-        paragraphs.push(
-          new Paragraph({
-            spacing: { before: 0, after: 140 },
-            border: {
-              bottom: {
-                style: BorderStyle.DOTTED,
-                size: 1,
-                color: '94A3B8',
-              },
-            },
-          })
-        );
-      }
-    } else if (outputMode === 'text_only') {
-      // Clean text only (no sender, no timestamp)
+    if (outputMode === 'text_only') {
       const textRuns: TextRun[] = [];
       rawLines.forEach((line, lIdx) => {
         textRuns.push(
@@ -236,7 +402,6 @@ export async function generateWordDocument(
         })
       );
     } else if (outputMode === 'sender_and_text') {
-      // Sender: Text inline
       const textRuns: TextRun[] = [];
 
       if (item.sender) {
@@ -246,7 +411,7 @@ export async function generateWordDocument(
             bold: true,
             font: fontFamily,
             size: fontSizeHalfPt,
-            color: '0369A1', // Slate blue for sender
+            color: '0369A1',
           })
         );
       }
@@ -284,23 +449,20 @@ export async function generateWordDocument(
         })
       );
     } else {
-      // Formatted Chat Dialogue
+      // formatted_chat
       if (item.sender) {
         paragraphs.push(
           new Paragraph({
             alignment: isUrduFont ? AlignmentType.RIGHT : AlignmentType.LEFT,
             bidirectional: isUrduFont,
-            spacing: {
-              before: 180,
-              after: 60,
-            },
+            spacing: { before: 180, after: 60 },
             children: [
               new TextRun({
                 text: item.sender,
                 bold: true,
                 font: fontFamily,
                 size: fontSizeHalfPt,
-                color: '047857', // Forest green header
+                color: '047857',
               }),
             ],
           })
@@ -346,7 +508,6 @@ export async function generateWordDocument(
     }
   });
 
-  // If no items were parsed, provide a placeholder paragraph
   if (paragraphs.length === 0) {
     paragraphs.push(
       new Paragraph({
@@ -363,26 +524,15 @@ export async function generateWordDocument(
     );
   }
 
-  // Standard A4 dimensions in twips: width: 11906, height: 16838
   const doc = new Document({
-    title: options.docTitle || 'فتاویٰ و پیغامات',
-    creator: options.authorName || 'دار الافتاء / WhatsApp to Word',
+    title: options.docTitle || 'WhatsApp Messages',
+    creator: options.authorName || 'WhatsApp to Word Cleaner',
     sections: [
       {
         properties: {
-          page: {
-            size: {
-              width: 11906, // A4 width
-              height: 16838, // A4 height
-            },
-            margin: {
-              top: convertInchesToTwip(0.75),
-              right: convertInchesToTwip(0.75),
-              bottom: convertInchesToTwip(0.75),
-              left: convertInchesToTwip(0.75),
-            },
-          },
+          page: a4PageProperties,
         },
+        footers: footer ? { default: footer } : undefined,
         children: paragraphs,
       },
     ],

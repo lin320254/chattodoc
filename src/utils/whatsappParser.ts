@@ -1,4 +1,5 @@
 import { WhatsAppMessage, ParseResult, CleanOptions, DocxOptions } from '../types';
+import { toUrduDigits, toMyanmarDigits } from './docxExporter';
 
 /**
  * Common WhatsApp timestamp regex patterns:
@@ -365,19 +366,43 @@ export function formatOutputText(
   docxOptions?: DocxOptions
 ): string {
   if (mode === 'fatwa_a4') {
-    const header = docxOptions?.fatwaHeaderTemplate || 'تاریخ: ــــــــــــــــــ فتوی نمبر: ــــــــــــــــ باب';
-    const prefix = docxOptions?.senderLabelPrefix !== undefined ? docxOptions.senderLabelPrefix : 'سائل: ';
+    const headerTemplate = docxOptions?.fatwaHeaderTemplate || 'تاریخ: ــــــــــــــــــ فتوی نمبر: ــــــــــــــــ باب';
+    const prefix = docxOptions?.senderLabelPrefix || '';
     const itemsPerPage = docxOptions?.itemsPerPage || 3;
+    const isUrdu = !docxOptions?.fontFamily || docxOptions.fontFamily.includes('Nastaleeq') || docxOptions.fontFamily.includes('Urdu');
+    const isMyanmar = docxOptions?.fontFamily && (docxOptions.fontFamily.includes('Pyidaungsu') || docxOptions.fontFamily.includes('Myanmar'));
+    const resetCount = docxOptions?.resetItemCountPerPage !== false;
+    const totalPages = Math.max(1, Math.ceil(items.length / itemsPerPage));
 
     return items
       .map((item, idx) => {
-        const senderLine = item.sender ? `\n${prefix}${item.sender}` : '';
-        // Zero gap between text and bottom name as requested
-        const entry = `${header}\n${item.text}${senderLine}`;
+        const pageIndex = Math.floor(idx / itemsPerPage);
+        const itemIndexOnPage = idx % itemsPerPage;
+        const itemNumberOnPage = itemIndexOnPage + 1; // 1, 2, or 3
+        const continuousNumber = idx + 1;
+        const activeNum = resetCount ? itemNumberOnPage : continuousNumber;
+        const numDisplay = isUrdu ? toUrduDigits(activeNum) : isMyanmar ? toMyanmarDigits(activeNum) : String(activeNum);
+        const itemsInThisPage = Math.min(itemsPerPage, items.length - pageIndex * itemsPerPage);
+        const totalInPageDisplay = isUrdu ? toUrduDigits(itemsInThisPage) : isMyanmar ? toMyanmarDigits(itemsInThisPage) : String(itemsInThisPage);
+
+        let finalHeader = headerTemplate;
+        if (finalHeader.includes('{num}')) {
+          finalHeader = finalHeader.replace('{num}', numDisplay).replace('{total}', totalInPageDisplay);
+        }
+
+        const cleanText = item.text.trim();
+        const senderLine =
+          item.sender && docxOptions?.senderAtBottom !== false
+            ? `\n${prefix}${item.sender}`
+            : '';
+        const entry = `${finalHeader}\n${cleanText}${senderLine}`;
         const isPageBreak = (idx + 1) % itemsPerPage === 0 && idx < items.length - 1;
-        const pageNum = Math.floor(idx / itemsPerPage) + 1;
+        const pageNum = pageIndex + 1;
+        const pageNumDisplay = isUrdu ? toUrduDigits(pageNum) : isMyanmar ? toMyanmarDigits(pageNum) : String(pageNum);
+        const totalPagesDisplay = isUrdu ? toUrduDigits(totalPages) : isMyanmar ? toMyanmarDigits(totalPages) : String(totalPages);
+
         if (isPageBreak) {
-          return `${entry}\n\n==================== [A4 Page ${pageNum} End / Page ${pageNum + 1} Start] ====================`;
+          return `${entry}\n\n==================== [A4 Page ${pageNumDisplay} / ${totalPagesDisplay} Complete • Counts Reset To #1 On Next Page] ====================`;
         }
         return entry;
       })
